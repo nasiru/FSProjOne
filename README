@@ -1,0 +1,21 @@
+Two separate projects for easier management.
+
+Both will be able to send and receive instructions, but for now the Server will receive and the Client will send.
+
+The sender will have a thread to process the instructions then send them one by one. 
+
+Two ways to process the instruction:
+
+1. Synchronous
+  a. Sender - Send instruction (Threaded)
+    b. Receiver - Receive and process instruction
+    c. Receiver - Send "sync complete"
+  d. Sender - Receive "sync complete"
+  e. Sender - Get next instruction from queue, go to step a.
+
+2. Asynchronous
+  a. Sender - Send instructions at an interval (Threaded)
+  b. Receiver - Receive instruction, put in queue and just keep processing (Threaded)
+
+For the paper:
+Consider the size of the queue. This is basically the same as HTTP GET 1.0 and 1.1 protocol.
