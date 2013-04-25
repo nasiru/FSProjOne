@@ -9,7 +9,6 @@ import java.net.Socket;
 
 public class Client {
 
-	@SuppressWarnings("resource")
 	public static void main(String[] args) {
 
 		Socket clientSocket = null;
@@ -39,14 +38,14 @@ public class Client {
 			// outToServer.writeUTF(args[1]);
 
 			// S or R
-			protocol = inFromServer.readUTF();
-			System.out.println(protocol);
-			outToServer.writeUTF(inFromUser.readLine());
+			System.out.println(inFromServer.readUTF());
+			protocol = inFromUser.readLine();
+			outToServer.writeUTF(protocol);
 
 			// Blocksize
-			blockSize = inFromServer.readUTF();
-			System.out.println(blockSize);
-			outToServer.writeUTF(inFromUser.readLine());
+			System.out.println(inFromServer.readUTF());
+			blockSize = inFromUser.readLine();
+			outToServer.writeUTF(blockSize);
 
 			// Start sync
 			System.out.println(inFromServer.readUTF());
@@ -55,18 +54,18 @@ public class Client {
 			file = new SynchronisedFile(args[1], Integer.parseInt(blockSize));
 
 		} catch (IOException e) {
-
+			e.printStackTrace();
 		}
-
-		Thread stt = new Thread(new InstructionThread(file));
+		System.out.println("HERE");
+		Thread stt = new Thread(new InstructionThread(file, clientSocket));
 		stt.start();
-
+		System.out.println("HERE2");
 		/*
 		 * Continue forever, checking the fromFile every 5 seconds.
 		 */
 		while (true) {
 			try {
-				// TODO: skip if the file is not modified
+				// skip if the file is not modified
 				System.err
 						.println("SynchTest: calling fromFile.CheckFileState()");
 				file.CheckFileState();

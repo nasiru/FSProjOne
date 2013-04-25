@@ -40,13 +40,10 @@ public class Server {
 						connectionSocket.getOutputStream());
 
 				System.out.println("Connected to client");
-
 				outToClient.writeUTF("(S) Sending or (R) Receiving?");
-
 				protocol = inFromClient.readUTF();
 
 				outToClient.writeUTF("Enter block size: ");
-
 				blockSize = inFromClient.readUTF();
 
 				System.out.println("Received: " + protocol + " and "
@@ -61,17 +58,60 @@ public class Server {
 				//
 				// inner infinite loop for synchronization proper
 				//
+				InstructionFactory instFact = new InstructionFactory();
+
 				while (!connectionSocket.isClosed()) {
 
+					// wait for instruction
+					Instruction receivedInst = instFact.FromJSON(inFromClient
+							.readUTF());
+
+					try {
+						// The Server processes the instruction
+						file.ProcessInstruction(receivedInst);
+						outToClient.writeUTF("Y");
+					} catch (IOException e) {
+						e.printStackTrace();
+						System.exit(-1); // just die at the first sign of
+											// trouble
+					} catch (BlockUnavailableException e) {
+						// The server does not have the bytes referred to by the
+						// block
+						// hash.
+						try {
+							/*
+							 * At this point the Server needs to send a request
+							 * back to the Client to obtain the actual bytes of
+							 * the block.
+							 */
+
+							outToClient.writeUTF("N");
+
+							// network delay
+
+							/*
+							 * Server receives the NewBlock instruction.
+							 */
+							receivedInst = instFact.FromJSON(inFromClient
+									.readUTF());
+
+							file.ProcessInstruction(receivedInst);
+						} catch (IOException e1) {
+							e1.printStackTrace();
+							System.exit(-1);
+						} catch (BlockUnavailableException e1) {
+							assert (false); // a NewBlockInstruction can never
+											// throw
+											// this exception
+						}
+					}
 				}
 
 			}
 
 		} catch (NumberFormatException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 

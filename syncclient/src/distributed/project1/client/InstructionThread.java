@@ -1,50 +1,56 @@
 package distributed.project1.client;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.Socket;
 
 public class InstructionThread implements Runnable {
 
 	SynchronisedFile file;
+	Socket clientSocket;
 
-	InstructionThread(SynchronisedFile f) {
+	DataOutputStream outToServer;
+	DataInputStream inFromServer;
+
+	InstructionThread(SynchronisedFile f, Socket s) {
 		file = f;
+		clientSocket = s;
+
+		try {
+			outToServer = new DataOutputStream(clientSocket.getOutputStream());
+			inFromServer = new DataInputStream(clientSocket.getInputStream());
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+
 	}
 
 	public void run() {
 		Instruction inst;
-		InstructionFactory instFact = new InstructionFactory();
+
 		// The Client reads instructions to send to the Server
 		while ((inst = file.NextInstruction()) != null) {
+
 			String msg = inst.ToJSON();
-			System.err.println("Sending: " + msg);
-			/*
-			 * Pretend the Client sends the msg to the Server.
-			 */
-
-			// network delay
-
-			/*
-			 * The Server receives the instruction here.
-			 */
-			Instruction receivedInst = instFact.FromJSON(msg);
+			String response = null;
 
 			try {
-				// The Server processes the instruction
-				toFile.ProcessInstruction(receivedInst);
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.exit(-1); // just die at the first sign of trouble
-			} catch (BlockUnavailableException e) {
-				// The server does not have the bytes referred to by the block
-				// hash.
-				try {
-					/*
-					 * At this point the Server needs to send a request back to
-					 * the Client to obtain the actual bytes of the block.
-					 */
+				/*
+				 * Pretend the Client sends the msg to the Server.
+				 */
+				System.err.println("Sending: " + msg);
+				outToServer.writeUTF(msg);
 
-					// network delay
+				// network delay
 
+				/*
+				 * The Server receives the instruction here.
+				 */
+				response = inFromServer.readUTF();
+
+				if (response.equals("N")) {
 					/*
 					 * Client upgrades the CopyBlock to a NewBlock instruction
 					 * and sends it.
@@ -52,36 +58,31 @@ public class InstructionThread implements Runnable {
 					Instruction upgraded = new NewBlockInstruction(
 							(CopyBlockInstruction) inst);
 					String msg2 = upgraded.ToJSON();
+
 					System.err.println("Sending: " + msg2);
+					outToServer.writeUTF(msg2);
+				} else if (response.equals("Y")) { // success
+
+					/*
+					 * If using a synchronous RequestReply protocol, the server
+					 * can now acknowledge that the block was correctly
+					 * received, and the next instruction can be sent.
+					 */
 
 					// network delay
 
 					/*
-					 * Server receives the NewBlock instruction.
+					 * Client receives acknowledgement and moves on to process
+					 * next instruction.
 					 */
-					Instruction receivedInst2 = instFact.FromJSON(msg2);
-					toFile.ProcessInstruction(receivedInst2);
-				} catch (IOException e1) {
-					e1.printStackTrace();
-					System.exit(-1);
-				} catch (BlockUnavailableException e1) {
-					assert (false); // a NewBlockInstruction can never throw
-									// this exception
+
 				}
+
+			} catch (IOException e) {
+
+				e.printStackTrace();
 			}
-			/*
-			 * If using a synchronous RequestReply protocol, the server can now
-			 * acknowledge that the block was correctly received, and the next
-			 * instruction can be sent.
-			 */
 
-			// network delay
-
-			/*
-			 * Client receives acknowledgement and moves on to process next
-			 * instruction.
-			 */
 		} // get next instruction loop forever
 	}
-
 }
