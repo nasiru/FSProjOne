@@ -6,6 +6,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class Client {
 
@@ -112,6 +113,9 @@ public class Client {
 				// The Server processes the instruction
 				file.ProcessInstruction(receivedInst);
 				outToServer.writeUTF("Y");
+			} catch (SocketException e) {
+				System.out.println("Client closed connection");
+				break;
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(-1); // just die at the first sign of

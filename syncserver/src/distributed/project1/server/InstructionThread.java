@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class InstructionThread implements Runnable {
 
@@ -78,8 +79,10 @@ public class InstructionThread implements Runnable {
 
 				}
 
+			} catch (SocketException e) {
+				System.out.println("QWEqwe");
+				Server.isThreadAlive = false;
 			} catch (IOException e) {
-
 				e.printStackTrace();
 			}
 

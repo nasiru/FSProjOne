@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class Server {
 
@@ -20,6 +21,8 @@ public class Server {
 	static String blockSize = null;
 
 	static Instruction receivedInst = null;
+
+	static boolean isThreadAlive = true;
 
 	public static void main(String[] args) {
 
@@ -54,6 +57,8 @@ public class Server {
 				file = new SynchronisedFile(args[0],
 						Integer.parseInt(blockSize));
 
+				isThreadAlive = true;
+
 				if (protocol.equals("S")) {
 					receive();
 				} else if (protocol.equals("R")) {
@@ -76,10 +81,16 @@ public class Server {
 		 */
 		while (true) {
 			try {
+				// terminate if client closed connection
+				if (!isThreadAlive) {
+					break;
+				}
+
 				// skip if the file is not modified
 				System.err
 						.println("SynchTest: calling fromFile.CheckFileState()");
 				file.CheckFileState();
+
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(-1);
@@ -87,6 +98,7 @@ public class Server {
 				e.printStackTrace();
 				System.exit(-1);
 			}
+
 			try {
 				Thread.sleep(5000);
 			} catch (InterruptedException e) {
@@ -103,7 +115,7 @@ public class Server {
 		//
 		InstructionFactory instFact = new InstructionFactory();
 
-		while (!serverSocket.isClosed()) {
+		while (true) {
 
 			try {
 				// wait for instruction
@@ -112,6 +124,9 @@ public class Server {
 				// The Server processes the instruction
 				file.ProcessInstruction(receivedInst);
 				outToClient.writeUTF("Y");
+			} catch (SocketException e) {
+				System.out.println("Client closed connection");
+				break;
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(-1); // just die at the first sign of
