@@ -8,18 +8,18 @@ import java.net.Socket;
 public class InstructionThread implements Runnable {
 
 	SynchronisedFile file;
-	Socket clientSocket;
+	Socket socket;
 
-	DataOutputStream outToServer;
-	DataInputStream inFromServer;
+	DataOutputStream out;
+	DataInputStream in;
 
 	InstructionThread(SynchronisedFile f, Socket s) {
 		file = f;
-		clientSocket = s;
+		socket = s;
 
 		try {
-			outToServer = new DataOutputStream(clientSocket.getOutputStream());
-			inFromServer = new DataInputStream(clientSocket.getInputStream());
+			out = new DataOutputStream(socket.getOutputStream());
+			in = new DataInputStream(socket.getInputStream());
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -41,14 +41,14 @@ public class InstructionThread implements Runnable {
 				 * Pretend the Client sends the msg to the Server.
 				 */
 				System.err.println("Sending: " + msg);
-				outToServer.writeUTF(msg);
+				out.writeUTF(msg);
 
 				// network delay
 
 				/*
 				 * The Server receives the instruction here.
 				 */
-				response = inFromServer.readUTF();
+				response = in.readUTF();
 
 				if (response.equals("N")) {
 					/*
@@ -60,7 +60,7 @@ public class InstructionThread implements Runnable {
 					String msg2 = upgraded.ToJSON();
 
 					System.err.println("Sending: " + msg2);
-					outToServer.writeUTF(msg2);
+					out.writeUTF(msg2);
 				} else if (response.equals("Y")) { // success
 
 					/*

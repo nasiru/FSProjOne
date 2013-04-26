@@ -9,17 +9,22 @@ import java.net.Socket;
 
 public class Client {
 
+	static DataOutputStream outToServer;
+	static DataInputStream inFromServer;
+
+	static Socket clientSocket = null;
+
+	static SynchronisedFile file = null;
+
+	static String protocol = null;
+	static String blockSize = null;
+
+	static Instruction receivedInst = null;
+
 	public static void main(String[] args) {
-
-		Socket clientSocket = null;
-
-		SynchronisedFile file = null;
 
 		BufferedReader inFromUser = new BufferedReader(new InputStreamReader(
 				System.in));
-
-		String protocol = null;
-		String blockSize = null;
 
 		try {
 
@@ -29,13 +34,9 @@ public class Client {
 			// clientSocket = new Socket(args[0], Integer.parseInt(args[2]));
 			// }
 
-			DataOutputStream outToServer = new DataOutputStream(
-					clientSocket.getOutputStream());
+			outToServer = new DataOutputStream(clientSocket.getOutputStream());
 
-			DataInputStream inFromServer = new DataInputStream(
-					clientSocket.getInputStream());
-
-			// outToServer.writeUTF(args[1]);
+			inFromServer = new DataInputStream(clientSocket.getInputStream());
 
 			// S or R
 			System.out.println(inFromServer.readUTF());
@@ -56,10 +57,20 @@ public class Client {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		System.out.println("HERE");
+
+		if (protocol.equals("S")) {
+			send();
+		} else if (protocol.equals("R")) {
+			receive();
+		}
+
+	}
+
+	private static void send() {
+
 		Thread stt = new Thread(new InstructionThread(file, clientSocket));
 		stt.start();
-		System.out.println("HERE2");
+
 		/*
 		 * Continue forever, checking the fromFile every 5 seconds.
 		 */
@@ -81,6 +92,58 @@ public class Client {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 				System.exit(-1);
+			}
+		}
+	}
+
+	private static void receive() {
+
+		//
+		// inner infinite loop for synchronization proper
+		//
+		InstructionFactory instFact = new InstructionFactory();
+
+		while (!clientSocket.isClosed()) {
+
+			try {
+				// wait for instruction
+				receivedInst = instFact.FromJSON(inFromServer.readUTF());
+
+				// The Server processes the instruction
+				file.ProcessInstruction(receivedInst);
+				outToServer.writeUTF("Y");
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.exit(-1); // just die at the first sign of
+									// trouble
+			} catch (BlockUnavailableException e) {
+				// The server does not have the bytes referred to by the
+				// block
+				// hash.
+				try {
+					/*
+					 * At this point the Server needs to send a request back to
+					 * the Client to obtain the actual bytes of the block.
+					 */
+
+					outToServer.writeUTF("N");
+
+					// network delay
+
+					/*
+					 * Server receives the NewBlock instruction.
+					 */
+					receivedInst = instFact.FromJSON(inFromServer.readUTF());
+
+					file.ProcessInstruction(receivedInst);
+				} catch (IOException e1) {
+					e1.printStackTrace();
+					System.exit(-1);
+				} catch (BlockUnavailableException e1) {
+					assert (false); // a NewBlockInstruction can never
+									// throw
+									// this exception
+				}
 			}
 		}
 	}
