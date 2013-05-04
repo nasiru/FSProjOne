@@ -6,6 +6,22 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 
+/* InstructionThread.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: Handles the received JSON messages containing
+ * synchronization instructions. Follows a request-reply protocol
+ * 'Y' or 'N' for success or for BlockUnavailableException
+ * respectively.
+ * 
+ * Includes a handler for SocketException to prevent crashing upon
+ * unclean client disconnections.
+ * 
+ * Code structure based on Aaron Harwood's SyncTestThread
+ * 
+ */
+
 public class InstructionThread implements Runnable {
 
 	SynchronisedFile file;
@@ -39,12 +55,10 @@ public class InstructionThread implements Runnable {
 
 			try {
 				/*
-				 * Pretend the Client sends the msg to the Server.
+				 * The Server sends the msg to the Client.
 				 */
 				System.err.println("Sending: " + msg);
 				out.writeUTF(msg);
-
-				// network delay
 
 				/*
 				 * The Server receives the instruction here.
@@ -53,7 +67,7 @@ public class InstructionThread implements Runnable {
 
 				if (response.equals("N")) {
 					/*
-					 * Client upgrades the CopyBlock to a NewBlock instruction
+					 * Server upgrades the CopyBlock to a NewBlock instruction
 					 * and sends it.
 					 */
 					Instruction upgraded = new NewBlockInstruction(
@@ -70,7 +84,7 @@ public class InstructionThread implements Runnable {
 					 * received, and the next instruction can be sent.
 					 */
 
-					// network delay
+					// We do nothing here.
 
 					/*
 					 * Client receives acknowledgement and moves on to process
@@ -80,7 +94,6 @@ public class InstructionThread implements Runnable {
 				}
 
 			} catch (SocketException e) {
-				System.out.println("QWEqwe");
 				Server.isThreadAlive = false;
 			} catch (IOException e) {
 				e.printStackTrace();

@@ -5,6 +5,19 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
+/* InstructionThread.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: Handles the received JSON messages containing
+ * synchronization instructions. Follows a request-reply protocol
+ * 'Y' or 'N' for success or for BlockUnavailableException
+ * respectively.
+ * 
+ * Code structure based on Aaron Harwood's SyncTestThread
+ * 
+ */
+
 public class InstructionThread implements Runnable {
 
 	SynchronisedFile file;
@@ -38,15 +51,13 @@ public class InstructionThread implements Runnable {
 
 			try {
 				/*
-				 * Pretend the Client sends the msg to the Server.
+				 * The Client sends the msg to the Server.
 				 */
 				System.err.println("Sending: " + msg);
 				out.writeUTF(msg);
 
-				// network delay
-
 				/*
-				 * The Server receives the instruction here.
+				 * The Client receives the instruction here.
 				 */
 				response = in.readUTF();
 
@@ -69,7 +80,7 @@ public class InstructionThread implements Runnable {
 					 * received, and the next instruction can be sent.
 					 */
 
-					// network delay
+					// We do nothing here.
 
 					/*
 					 * Client receives acknowledgement and moves on to process

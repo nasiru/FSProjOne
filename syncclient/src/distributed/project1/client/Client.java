@@ -8,7 +8,24 @@ import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.SocketException;
 
+/* syncclient/Client.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: A basic TCP client setup built on top of the
+ * Filesync protocol. Allows negotiation of data flow and block size
+ * upon connecting to the server via user input. 
+ * 
+ * Calls InstructionThread when it is designated as the sender. 
+ * 
+ * Code structure based on Aaron Harwood's SyncTest
+ * 
+ */
+
 public class Client {
+
+	static final int DEFAULT_PORT = 7654;
+	static final int MAX_BLOCK_SIZE = 40000;
 
 	static DataOutputStream outToServer;
 	static DataInputStream inFromServer;
@@ -17,8 +34,8 @@ public class Client {
 
 	static SynchronisedFile file = null;
 
-	static String protocol = null;
-	static String blockSize = null;
+	static String protocol = "";
+	static Integer blockSize = 0;
 
 	static Instruction receivedInst = null;
 
@@ -29,31 +46,34 @@ public class Client {
 
 		try {
 
-			// if (args.length == 2) {
-			clientSocket = new Socket(args[0], 7654);
-			// } else {
-			// clientSocket = new Socket(args[0], Integer.parseInt(args[2]));
-			// }
+			clientSocket = new Socket(args[0], DEFAULT_PORT);
 
 			outToServer = new DataOutputStream(clientSocket.getOutputStream());
 
 			inFromServer = new DataInputStream(clientSocket.getInputStream());
 
-			// S or R
+			// "Sending or Receiving?" must be replied with S or R
 			System.out.println(inFromServer.readUTF());
-			protocol = inFromUser.readLine();
+
+			while (!protocol.equals("R") && !protocol.equals("S")) {
+				protocol = inFromUser.readLine();
+			}
+
 			outToServer.writeUTF(protocol);
 
 			// Blocksize
 			System.out.println(inFromServer.readUTF());
-			blockSize = inFromUser.readLine();
-			outToServer.writeUTF(blockSize);
+
+			while (blockSize <= 0 || blockSize > MAX_BLOCK_SIZE) {
+				blockSize = Integer.parseInt(inFromUser.readLine());
+			}
+			outToServer.writeUTF(blockSize.toString());
 
 			// Start sync
 			System.out.println(inFromServer.readUTF());
 
 			// Open file with blocksize
-			file = new SynchronisedFile(args[1], Integer.parseInt(blockSize));
+			file = new SynchronisedFile(args[1], blockSize);
 
 		} catch (IOException e) {
 			e.printStackTrace();

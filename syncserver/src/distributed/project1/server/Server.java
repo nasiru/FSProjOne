@@ -2,12 +2,29 @@ package distributed.project1.server;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 
+/* syncserver/Server.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: A basic TCP server setup built on top of the
+ * Filesync protocol. Allows negotiation of data flow and block size
+ * with its clients. Calls InstructionThread when it is designated as
+ * the sender. 
+ * 
+ * Code structure based on Aaron Harwood's SyncTest
+ * 
+ */
+
 public class Server {
+
+	static final int DEFAULT_PORT = 7654;
+	static final int MAX_BLOCK_SIZE = 40000;
 
 	static ServerSocket serverSocket = null;
 	static Socket connectionSocket = null;
@@ -27,7 +44,7 @@ public class Server {
 	public static void main(String[] args) {
 
 		try {
-			serverSocket = new ServerSocket(7654);
+			serverSocket = new ServerSocket(DEFAULT_PORT);
 
 			System.out.println("Listening to port: "
 					+ serverSocket.getLocalPort());
@@ -45,7 +62,8 @@ public class Server {
 				outToClient.writeUTF("(S) Sending or (R) Receiving?");
 				protocol = inFromClient.readUTF();
 
-				outToClient.writeUTF("Enter block size: ");
+				outToClient.writeUTF("Enter block size (1-" + MAX_BLOCK_SIZE
+						+ ") : ");
 				blockSize = inFromClient.readUTF();
 
 				System.out.println("Received: " + protocol + " and "
@@ -126,6 +144,9 @@ public class Server {
 				outToClient.writeUTF("Y");
 			} catch (SocketException e) {
 				System.out.println("Client closed connection");
+				break;
+			} catch (EOFException e) {
+				// catch if client disconnected and go back to listening
 				break;
 			} catch (IOException e) {
 				e.printStackTrace();
