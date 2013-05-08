@@ -23,73 +23,98 @@ import java.net.SocketException;
 
 public class Server {
 
-	static final int DEFAULT_PORT = 7654;
-	static final int MAX_BLOCK_SIZE = 40000;
+	private final int DEFAULT_PORT = 7654;
+	private final int MAX_BLOCK_SIZE = 40000;
 
-	static ServerSocket serverSocket = null;
-	static Socket connectionSocket = null;
+	private ServerSocket serverSocket = null; // server socket
+	private Socket connectionSocket = null; // connection to client
 
-	static SynchronisedFile file = null;
+	private SynchronisedFile file = null;
 
-	static DataInputStream inFromClient = null;
-	static DataOutputStream outToClient = null;
+	private DataInputStream inFromClient = null;
+	private DataOutputStream outToClient = null;
 
-	static String protocol = null;
-	static String blockSize = null;
+	private String protocol = null;
+	private String blockSize = null;
 
-	static Instruction receivedInst = null;
+	private Instruction receivedInst = null;
 
-	static boolean isThreadAlive = true;
+	public boolean isThreadAlive = true;
 
 	public static void main(String[] args) {
 
-		try {
-			serverSocket = new ServerSocket(DEFAULT_PORT);
+		Server applicationServer = new Server(); // create Server
+		applicationServer.serverMethod(args); // run Server
+
+	}
+
+	public void serverMethod(String[] args) {
+		try { // set up server to receive connections; process connections
+
+			serverSocket = new ServerSocket(DEFAULT_PORT); // create
+															// ServerSocket
 
 			System.out.println("Listening to port: "
 					+ serverSocket.getLocalPort());
 
 			while (true) {
-				connectionSocket = serverSocket.accept();
-
-				inFromClient = new DataInputStream(
-						connectionSocket.getInputStream());
-
-				outToClient = new DataOutputStream(
-						connectionSocket.getOutputStream());
-
+				waitForConnection(); // wait for a connection
 				System.out.println("Connected to client");
-				outToClient.writeUTF("(S) Sending or (R) Receiving?");
-				protocol = inFromClient.readUTF();
 
-				outToClient.writeUTF("Enter block size (1-" + MAX_BLOCK_SIZE
-						+ ") : ");
-				blockSize = inFromClient.readUTF();
+				processSteams(); // process input & output streams
 
-				System.out.println("Received: " + protocol + " and "
-						+ blockSize);
+				startProcessing(args); // process the connection to sync files
+			} // end while
+		} // end try
 
-				outToClient.writeUTF("Got it. Starting synchronization...");
-
-				// Open file with blocksize
-				file = new SynchronisedFile(args[0],
-						Integer.parseInt(blockSize));
-
-				isThreadAlive = true;
-
-				if (protocol.equals("S")) {
-					receive();
-				} else if (protocol.equals("R")) {
-					send();
-				}
-			}
-		} catch (IOException e) {
+		catch (IOException e) {
 			e.printStackTrace();
 		}
-
 	}
 
-	private static void send() {
+	// wait for connection to arrive, then display connection info
+	private void waitForConnection() throws IOException {
+		System.out.println("Waiting for connection\n");
+		connectionSocket = serverSocket.accept(); // allow server to accept
+													// connection
+		System.out.println("Connection received from: "
+				+ connectionSocket.getInetAddress().getHostName());
+	} // end method waitForConnection
+
+	// get streams to send and receive data
+	private void processSteams() throws IOException {
+
+		outToClient = new DataOutputStream(connectionSocket.getOutputStream());
+		outToClient.writeUTF("(S) Sending or (R) Receiving?");
+		outToClient.writeUTF("Enter block size (1-" + MAX_BLOCK_SIZE + ") : ");
+
+		inFromClient = new DataInputStream(connectionSocket.getInputStream());
+		protocol = inFromClient.readUTF();
+
+		blockSize = inFromClient.readUTF();
+
+		System.out.println("Received: " + protocol + " and " + blockSize);
+
+		outToClient.writeUTF("Got it. Starting synchronization...");
+		outToClient.flush(); // flush output buffer to send header information
+	} // end method processSteams
+
+	// process connection with client
+	private void startProcessing(String[] args) throws IOException {
+		// Open file with blocksize
+		file = new SynchronisedFile(args[0], Integer.parseInt(blockSize));
+
+		isThreadAlive = true;
+
+		if (protocol.equals("S")) {
+			receive();
+		} else if (protocol.equals("R")) {
+			send();
+		}
+	} // end process connection method
+
+	// send method will start a thread
+	private void send() {
 
 		Thread stt = new Thread(new InstructionThread(file, connectionSocket));
 		stt.start();
@@ -109,13 +134,14 @@ public class Server {
 						.println("SynchTest: calling fromFile.CheckFileState()");
 				file.CheckFileState();
 
-			} catch (IOException e) {
+			} // end try
+			catch (IOException e) {
 				e.printStackTrace();
 				System.exit(-1);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 				System.exit(-1);
-			}
+			} // end catch
 
 			try {
 				Thread.sleep(5000);
@@ -126,7 +152,8 @@ public class Server {
 		}
 	}
 
-	private static void receive() {
+	// receive method will receive instructions
+	private void receive() {
 
 		//
 		// inner infinite loop for synchronization proper
@@ -182,5 +209,20 @@ public class Server {
 				}
 			}
 		}
-	}
+	} // end receive method
+
+	// close streams and socket
+	private void closeConnection() {
+		System.out.println("\nTerminating connection\n");
+
+		try {
+			outToClient.close(); // close output stream
+			inFromClient.close(); // close input stream
+			connectionSocket.close(); // close socket
+		} // end try
+		catch (IOException ioException) {
+			ioException.printStackTrace();
+		} // end catch
+	} // end method closeConnection
+
 }

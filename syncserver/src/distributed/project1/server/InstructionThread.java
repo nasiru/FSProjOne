@@ -94,7 +94,9 @@ public class InstructionThread implements Runnable {
 				}
 
 			} catch (SocketException e) {
-				Server.isThreadAlive = false;
+				Server applicationServer = new Server();
+				applicationServer.isThreadAlive = false;
+				//Server.isThreadAlive = false;
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
