@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
+
+//import distributed.project1.server.Server;
 
 /* syncclient/Client.java
  * 
@@ -24,36 +27,40 @@ import java.net.SocketException;
 
 public class Client {
 
-	static final int DEFAULT_PORT = 7654;
-	static final int MAX_BLOCK_SIZE = 40000;
+	private final int DEFAULT_PORT = 7654;
+	private final int MAX_BLOCK_SIZE = 40000;
 
-	static DataOutputStream outToServer;
-	static DataInputStream inFromServer;
+	private DataOutputStream outToServer; // output to server
+	private DataInputStream inFromServer; // input from server
 
-	static Socket clientSocket = null;
+	private Socket clientSocket = null; // connection to server
 
-	static SynchronisedFile file = null;
+	private SynchronisedFile file = null;
 
-	static String protocol = "";
-	static Integer blockSize = 0;
-
-	static Instruction receivedInst = null;
+	private String protocol = "";
+	private Integer blockSize = 0;
+	private Instruction receivedInst = null;
 
 	public static void main(String[] args) {
 
 		BufferedReader inFromUser = new BufferedReader(new InputStreamReader(
 				System.in));
 
+		Client applicationServer = new Client(); // create Client
+		applicationServer.startClientMethod(args, inFromUser); // run Client
+																// Method
+
+	}
+	
+	/*
+	 * clientMethod will connect to the server and initiate file sync
+	 */
+	public void startClientMethod(String[] args, BufferedReader inFromUser) {
 		try {
 
-			clientSocket = new Socket(args[0], DEFAULT_PORT);
+			connectServer(args); // create a Socket to make connection
 
-			outToServer = new DataOutputStream(clientSocket.getOutputStream());
-
-			inFromServer = new DataInputStream(clientSocket.getInputStream());
-
-			// "Sending or Receiving?" must be replied with S or R
-			System.out.println(inFromServer.readUTF());
+			getStreams(); // get the input and output streams
 
 			while (!protocol.equals("R") && !protocol.equals("S")) {
 				protocol = inFromUser.readLine();
@@ -75,19 +82,44 @@ public class Client {
 			// Open file with blocksize
 			file = new SynchronisedFile(args[1], blockSize);
 
-		} catch (IOException e) {
+		} // end try
+		catch (IOException e) {
 			e.printStackTrace();
-		}
+		} // end catch
 
 		if (protocol.equals("S")) {
 			send();
 		} else if (protocol.equals("R")) {
 			receive();
 		}
+	} // end startClientMethod
 
-	}
+	// connect to server
+	private void connectServer(String[] args) throws IOException {
 
-	private static void send() {
+		// create Socket to make connection to server
+		clientSocket = new Socket(args[0], DEFAULT_PORT);
+		// display connection information
+		System.out.println("Connected to: "
+				+ clientSocket.getInetAddress().getHostName());
+	} // end method connectServer
+
+	// get streams to send and receive data
+	private void getStreams() throws IOException {
+		// set up output stream for objects
+		outToServer = new DataOutputStream(clientSocket.getOutputStream());
+
+		// set up input stream for objects
+		inFromServer = new DataInputStream(clientSocket.getInputStream());
+
+		// "Sending or Receiving?" must be replied with S or R
+		System.out.println(inFromServer.readUTF());
+	} // end getSteam method
+
+	/*
+	 * This method will send data blocks
+	 */
+	private void send() {
 
 		Thread stt = new Thread(new InstructionThread(file, clientSocket));
 		stt.start();
@@ -115,9 +147,12 @@ public class Client {
 				System.exit(-1);
 			}
 		}
-	}
+	} // end of send method
 
-	private static void receive() {
+	/*
+	 * This method will receive instructions
+	 */
+	private void receive() {
 
 		//
 		// inner infinite loop for synchronization proper
@@ -170,5 +205,5 @@ public class Client {
 				}
 			}
 		}
-	}
+	} // end of receive method
 }
