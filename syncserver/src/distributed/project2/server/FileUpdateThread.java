@@ -1,6 +1,8 @@
-package distributed.project2.cipher;
+package distributed.project2.server;
 
 import java.io.IOException;
+
+import distributed.project2.server.SynchronisedFile;
 
 public class FileUpdateThread implements Runnable {
 

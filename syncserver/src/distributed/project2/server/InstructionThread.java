@@ -1,11 +1,16 @@
-package distributed.project2.cipher;
+package distributed.project2.server;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.GeneralSecurityException;
+
+import javax.crypto.SecretKey;
+
+import org.bouncycastle.util.encoders.Base64;
 
 /* InstructionThread.java
  * 
@@ -28,20 +33,23 @@ public class InstructionThread implements Runnable {
 	SynchronisedFile file;
 	Socket socket;
 
-	DataOutputStream out;
-	DataInputStream in;
+	ObjectOutputStream out;
+	ObjectInputStream in;
 
 	String protocol = null;
 	String blockSize = null;
 
-	InstructionThread(SynchronisedFile f, Socket s, String p) {
+	SecretKey symmetricKey;
+
+	InstructionThread(SynchronisedFile f, Socket s, String p, SecretKey sk) {
 		file = f;
 		socket = s;
 		protocol = p;
+		symmetricKey = sk;
 
 		try {
-			out = new DataOutputStream(socket.getOutputStream());
-			in = new DataInputStream(socket.getInputStream());
+			out = new ObjectOutputStream(socket.getOutputStream());
+			in = new ObjectInputStream(socket.getInputStream());
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -70,8 +78,8 @@ public class InstructionThread implements Runnable {
 
 	}
 
-	private boolean receive(SynchronisedFile file, DataOutputStream out,
-			DataInputStream in) {
+	private boolean receive(SynchronisedFile file, ObjectOutputStream out,
+			ObjectInputStream in) {
 
 		Instruction receivedInst = null;
 
@@ -84,11 +92,14 @@ public class InstructionThread implements Runnable {
 
 			try {
 				// wait for instruction
-				receivedInst = instFact.FromJSON(in.readUTF());
+				receivedInst = instFact.FromJSON(new String(HybridCipher
+						.decrypt((byte[]) in.readObject(), symmetricKey)));
 
 				// The Server processes the instruction
 				file.ProcessInstruction(receivedInst);
-				out.writeUTF("Y");
+				out.writeObject(HybridCipher.encrypt("Y".getBytes(),
+						symmetricKey));
+
 			} catch (SocketException e) {
 				System.out.println("Client closed connection");
 				return false;
@@ -109,16 +120,19 @@ public class InstructionThread implements Runnable {
 					 * the Client to obtain the actual bytes of the block.
 					 */
 
-					out.writeUTF("N");
+					out.writeObject(HybridCipher.encrypt("N".getBytes(),
+							symmetricKey));
 
 					// network delay
 
 					/*
 					 * Server receives the NewBlock instruction.
 					 */
-					receivedInst = instFact.FromJSON(in.readUTF());
+					receivedInst = instFact.FromJSON(new String(HybridCipher
+							.decrypt((byte[]) in.readObject(), symmetricKey)));
 
 					file.ProcessInstruction(receivedInst);
+
 				} catch (IOException e1) {
 					e1.printStackTrace();
 					System.exit(-1);
@@ -126,14 +140,24 @@ public class InstructionThread implements Runnable {
 					assert (false); // a NewBlockInstruction can never
 									// throw
 									// this exception
+				} catch (GeneralSecurityException e1) {
+					e.printStackTrace();
+				} catch (ClassNotFoundException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
 				}
+			} catch (GeneralSecurityException e) {
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 		return true;
 	}
 
-	private boolean send(SynchronisedFile file, DataOutputStream out,
-			DataInputStream in) {
+	private boolean send(SynchronisedFile file, ObjectOutputStream out,
+			ObjectInputStream in) {
 		Instruction inst;
 
 		// The Client reads instructions to send to the Server
@@ -147,12 +171,14 @@ public class InstructionThread implements Runnable {
 				 * The Server sends the msg to the Client.
 				 */
 				System.err.println("Sending: " + msg);
-				out.writeUTF(msg);
+				out.writeUTF(new String(Base64.encode(HybridCipher.encrypt(
+						msg.getBytes(), symmetricKey))));
 
 				/*
 				 * The Server receives the instruction here.
 				 */
-				response = in.readUTF();
+				response = HybridCipher.decrypt(in.readUTF().getBytes(),
+						symmetricKey).toString();
 
 				if (response.equals("N")) {
 					/*
@@ -164,7 +190,8 @@ public class InstructionThread implements Runnable {
 					String msg2 = upgraded.ToJSON();
 
 					System.err.println("Sending: " + msg2);
-					out.writeUTF(msg2);
+					out.writeUTF(new String(Base64.encode(HybridCipher.encrypt(
+							msg2.getBytes(), symmetricKey))));
 				} else if (response.equals("Y")) { // success
 
 					/*
@@ -185,6 +212,8 @@ public class InstructionThread implements Runnable {
 			} catch (SocketException e) {
 				return false;
 			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 			}
 
