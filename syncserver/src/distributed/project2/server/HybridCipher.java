@@ -1,12 +1,18 @@
 package distributed.project2.server;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -27,24 +33,81 @@ public class HybridCipher {
 	public static String symAlgorithm = "RIJNDAEL";
 	public static int symAlgorithmStrength = 256;
 
+	private static File privfile = new File("priv.kp");
+	private static File pubfile = new File("pub.kp");
+	
 	public static KeyPair init() {
 
 		try {
 			// make sure the BC provider is registered.
 			Security.addProvider(new BouncyCastleProvider());
 
+			// check if keypair was already generated and stored
+			if(privfile.exists() && pubfile.exists()) {
+			
+				System.out.println("Key files found, loading keys . . .");
+				
+				// read private key from file
+				FileInputStream privin = new FileInputStream(privfile);
+			
+				byte[] privbytes = new byte[(int) privfile.length()];
+
+				privin.read(privbytes);
+				privin.close();
+				
+				// read public key from file
+				FileInputStream pubin = new FileInputStream(pubfile);
+				
+				byte[] pubbytes = new byte[(int) pubfile.length()];
+
+				pubin.read(pubbytes);
+				pubin.close();
+				
+				// load both
+				KeyFactory keyFactory = KeyFactory.getInstance(
+						asymKeyAlgorithm, "BC");
+				
+				X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(pubbytes);
+				PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
+				
+				PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privbytes);
+				PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
+				
+				return new KeyPair(publicKey,privateKey);
+				
+			} else {
+			
 			SecureRandom sr = new SecureRandom();
 
-			/***
-			 * Generate consumer keys for test purposes. In Real Life(TM) the
-			 * producer would need to know only the consumer's public key.
-			 ***/
+			// Generate consumer keys 
 			KeyPairGenerator gen = KeyPairGenerator.getInstance(
 					asymKeyAlgorithm, "BC");
 			gen.initialize(asymKeyAlgorithmStrength, sr);
 
 			System.out.println("Generating key . . .");
-			return gen.generateKeyPair();
+			
+			KeyPair kp = gen.generateKeyPair();
+			
+			PrivateKey privateKey = kp.getPrivate();
+			PublicKey publicKey = kp.getPublic();
+			
+			// save private key
+			privfile.createNewFile();
+			FileOutputStream privout = new FileOutputStream(privfile);
+			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(privateKey.getEncoded());
+			privout.write(pkcs8EncodedKeySpec.getEncoded());
+			privout.close();
+			
+			// save public key
+			pubfile.createNewFile();
+			FileOutputStream pubout = new FileOutputStream(pubfile);
+			X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(publicKey.getEncoded());
+			pubout.write(x509EncodedKeySpec.getEncoded());
+			pubout.close();
+			
+			return kp;
+			}
+			
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -96,7 +159,7 @@ public class HybridCipher {
 			throws GeneralSecurityException {
 
 		Cipher cipher = Cipher.getInstance(symAlgorithm);
-		System.out.println("got cipher, blocksize = " + cipher.getBlockSize());
+		//System.out.println("got cipher, blocksize = " + cipher.getBlockSize());
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 
 		byte[] result = cipher.doFinal(toEncrypt);

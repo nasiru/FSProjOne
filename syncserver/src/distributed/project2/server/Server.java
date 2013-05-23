@@ -1,6 +1,7 @@
 package distributed.project2.server;
 
 import java.io.BufferedReader;
+import java.io.Console;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
@@ -56,9 +57,15 @@ public class Server {
 			serverSocket = new ServerSocket(DEFAULT_PORT);
 
 			System.out.print("Set server password: ");
-			serverPass = new BufferedReader(new InputStreamReader(System.in))
+			
+			// mask password (returns null on Eclipse, so a fallback is placed)
+			Console con = System.console();
+			if (con != null) {
+				serverPass = con.readPassword().toString();
+			} else {
+				serverPass = new BufferedReader(new InputStreamReader(System.in))
 					.readLine();
-
+			}
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
@@ -81,12 +88,21 @@ public class Server {
 					if (clients[i] == null) {
 						System.out.println("Connected to client");
 
-						System.out.println("Sending public key");
-						outToClient.writeObject(keyPair.getPublic());
-
-						// grab encrypted data from client
-						byte[] symmetricKey = (byte[]) inFromClient
-								.readObject();
+						Object response = inFromClient.readObject();
+						byte[] symmetricKey;
+						
+						// if length = 1, then client needs the public key
+						if(response.getClass().equals(Character.class)) {
+							System.out.println("Sending public key");
+							outToClient.writeObject(keyPair.getPublic());
+							
+							// grab encrypted data from client
+							symmetricKey = (byte[]) inFromClient
+									.readObject();
+						} else {
+							System.out.println("Client has key, not sending public key");
+							symmetricKey = (byte[]) response;
+						}
 
 						System.out.println("got key");
 
@@ -103,27 +119,19 @@ public class Server {
 								serverPass)) {
 
 							try {
-								// encrypt send/receive question
+								// encrypt "waiting" message
 								message = HybridCipher.encrypt(new String(
-										"(S) Sending or (R) Receiving?")
+										"Waiting for synchronization parameters...")
 										.getBytes(), sk);
 
 								outToClient.writeObject(message);
 
-								// decrypt reply
-								protocol = new String(HybridCipher.decrypt(
+								// decrypt the combined parameters then parse it
+								String params = new String(HybridCipher.decrypt(
 										(byte[]) inFromClient.readObject(), sk));
-
-								// encrypt block size question
-								message = HybridCipher.encrypt(
-										("Enter block size (1-"
-												+ MAX_BLOCK_SIZE + ") : ")
-												.getBytes(), sk);
-								outToClient.writeObject(message);
-
-								// decrypt reply
-								blockSize = new String(HybridCipher.decrypt(
-										(byte[]) inFromClient.readObject(), sk));
+								
+								protocol = params.charAt(0) + "";
+								blockSize = params.substring(1);
 
 								System.out.println("Received: " + protocol
 										+ " and " + blockSize);

@@ -81,7 +81,7 @@ public class HybridCipher {
 			throws GeneralSecurityException {
 
 		Cipher cipher = Cipher.getInstance(symAlgorithm);
-		System.out.println("got cipher, blocksize = " + cipher.getBlockSize());
+		//System.out.println("got cipher, blocksize = " + cipher.getBlockSize());
 		cipher.init(Cipher.ENCRYPT_MODE, cipherKey);
 
 		byte[] result = cipher.doFinal(toEncrypt);

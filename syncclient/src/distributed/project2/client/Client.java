@@ -1,6 +1,10 @@
 package distributed.project2.client;
 
 import java.io.BufferedReader;
+import java.io.Console;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
@@ -8,8 +12,17 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.Security;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Base64;
 
 /* syncclient/Client.java
@@ -28,6 +41,17 @@ import org.bouncycastle.util.encoders.Base64;
 
 public class Client {
 
+	// asymmetric algorithms used
+		public static String asymKeyAlgorithm = "RSA";
+		public static String asymAlgorithm = "RSA/ECB/OAEPWithMD5AndMGF1Padding";
+		public static int asymKeyAlgorithmStrength = 1024;
+
+		// symmetric algorithms used
+		public static String symKeyAlgorithm = "RIJNDAEL";
+		public static String symAlgorithm = "RIJNDAEL";
+		public static int symAlgorithmStrength = 256;
+	
+	
 	static final int DEFAULT_PORT = 7654;
 	static final int MAX_BLOCK_SIZE = 40000;
 
@@ -56,17 +80,80 @@ public class Client {
 
 		try {
 
+			// argument format: address filename S|R 1-40000
+			
+			// check for proper args
+			if (args[2].equals("S") || args[2].equals("R")) {
+				protocol = args[2];
+			} else {
+				System.out.println("Required arguments: address S|R 1-40000");
+				System.exit(-1);
+			}
+			
+			if (Integer.parseInt(args[3]) > 0 && Integer.parseInt(args[3]) < 40001) {
+				blockSize = Integer.parseInt(args[3]);
+			} else {
+				System.out.println("Required arguments: address S|R 1-40000");
+				System.exit(-1);
+			}
+			
 			clientSocket = new Socket(args[0], DEFAULT_PORT);
 			outToServer = new ObjectOutputStream(clientSocket.getOutputStream());
 			inFromServer = new ObjectInputStream(clientSocket.getInputStream());
 
-			// Receive server public key
-			pk = (PublicKey) inFromServer.readObject();
+			File pubfile = new File("keys/" + args[0]);
+			
+			if (pubfile.exists()) {
+				Security.addProvider(new BouncyCastleProvider());
+				
+				System.out.println("Found server in keys dir, reusing pub key...");
+				
+				// read public key from file
+				FileInputStream pubin = new FileInputStream(pubfile);
+				
+				byte[] pubbytes = new byte[(int) pubfile.length()];
 
+				pubin.read(pubbytes);
+				pubin.close();
+				
+				// load both
+				KeyFactory keyFactory = KeyFactory.getInstance(
+						asymKeyAlgorithm, "BC");
+				
+				X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(pubbytes);
+				PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
+				
+				pk = publicKey;
+			} else {
+			
+				System.out.println("Pub key for this server not found, requesting...");
+				
+				// don't have the key, send any 1-char response to request the key
+				outToServer.writeObject('.');
+				
+				// Receive server public key
+				pk = (PublicKey) inFromServer.readObject();
+				
+				// save public key
+				pubfile.createNewFile();
+				FileOutputStream pubout = new FileOutputStream(pubfile);
+				X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(pk.getEncoded());
+				pubout.write(x509EncodedKeySpec.getEncoded());
+				pubout.close();
+				
+			}
+			
 			System.out.print("Enter server password: ");
 
 			// get encrypted password and random symmetric key for this session
-			password = HybridCipher.init(pk, inFromUser.readLine());
+			// mask password (returns null on Eclipse, so a fallback is placed)
+						Console con = System.console();
+						if (con != null) {
+							password = HybridCipher.init(pk, con.readPassword().toString());
+						} else {
+							password = HybridCipher.init(pk, inFromUser.readLine());
+						}
+						
 			symmetricKey = HybridCipher.getEncryptedKey(pk);
 
 			// send server the encrypted key, then the password.
@@ -77,27 +164,12 @@ public class Client {
 
 			// If the server accepts the key and password, the program continues
 
-			// "Sending or Receiving?" must be replied with S or R
+			// Print waiting notification
 			System.out.println(new String(HybridCipher
 					.decrypt((byte[]) inFromServer.readObject())));
 
-			while (!protocol.equals("R") && !protocol.equals("S")) {
-				protocol = inFromUser.readLine();
-			}
-
-			// encrypt protocol then send to server
-			outToServer.writeObject(HybridCipher.encrypt(protocol.getBytes()));
-
-			// Blocksize
-			System.out.println(new String(HybridCipher
-					.decrypt((byte[]) inFromServer.readObject())));
-
-			while (blockSize <= 0 || blockSize > MAX_BLOCK_SIZE) {
-				blockSize = Integer.parseInt(inFromUser.readLine());
-			}
-
-			outToServer.writeObject(HybridCipher.encrypt(blockSize.toString()
-					.getBytes()));
+			// combine protocol and block size into one string, encrypt it and send
+			outToServer.writeObject(HybridCipher.encrypt((protocol + blockSize.toString()).getBytes()));
 
 			// Start sync
 			System.out.println(inFromServer.readObject());
