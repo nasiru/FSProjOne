@@ -2,6 +2,7 @@ package distributed.project2.client;
 
 import java.io.BufferedReader;
 import java.io.Console;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -13,17 +14,11 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.Security;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.util.encoders.Base64;
 
 /* syncclient/Client.java
  * 
@@ -42,16 +37,15 @@ import org.bouncycastle.util.encoders.Base64;
 public class Client {
 
 	// asymmetric algorithms used
-		public static String asymKeyAlgorithm = "RSA";
-		public static String asymAlgorithm = "RSA/ECB/OAEPWithMD5AndMGF1Padding";
-		public static int asymKeyAlgorithmStrength = 1024;
+	public static String asymKeyAlgorithm = "RSA";
+	public static String asymAlgorithm = "RSA/ECB/OAEPWithMD5AndMGF1Padding";
+	public static int asymKeyAlgorithmStrength = 1024;
 
-		// symmetric algorithms used
-		public static String symKeyAlgorithm = "RIJNDAEL";
-		public static String symAlgorithm = "RIJNDAEL";
-		public static int symAlgorithmStrength = 256;
-	
-	
+	// symmetric algorithms used
+	public static String symKeyAlgorithm = "RIJNDAEL";
+	public static String symAlgorithm = "RIJNDAEL";
+	public static int symAlgorithmStrength = 256;
+
 	static final int DEFAULT_PORT = 7654;
 	static final int MAX_BLOCK_SIZE = 40000;
 
@@ -64,8 +58,6 @@ public class Client {
 
 	static String protocol = "";
 	static Integer blockSize = 0;
-
-	static Instruction receivedInst = null;
 
 	// server public key
 	static PublicKey pk = null;
@@ -81,7 +73,7 @@ public class Client {
 		try {
 
 			// argument format: address filename S|R 1-40000
-			
+
 			// check for proper args
 			if (args[2].equals("S") || args[2].equals("R")) {
 				protocol = args[2];
@@ -89,71 +81,77 @@ public class Client {
 				System.out.println("Required arguments: address S|R 1-40000");
 				System.exit(-1);
 			}
-			
-			if (Integer.parseInt(args[3]) > 0 && Integer.parseInt(args[3]) < 40001) {
+
+			if (Integer.parseInt(args[3]) > 0
+					&& Integer.parseInt(args[3]) < 40001) {
 				blockSize = Integer.parseInt(args[3]);
 			} else {
 				System.out.println("Required arguments: address S|R 1-40000");
 				System.exit(-1);
 			}
-			
+
 			clientSocket = new Socket(args[0], DEFAULT_PORT);
 			outToServer = new ObjectOutputStream(clientSocket.getOutputStream());
 			inFromServer = new ObjectInputStream(clientSocket.getInputStream());
 
 			File pubfile = new File("keys/" + args[0]);
-			
+
 			if (pubfile.exists()) {
 				Security.addProvider(new BouncyCastleProvider());
-				
-				System.out.println("Found server in keys dir, reusing pub key...");
-				
+
+				System.out
+						.println("Found server in keys dir, reusing pub key...");
+
 				// read public key from file
 				FileInputStream pubin = new FileInputStream(pubfile);
-				
+
 				byte[] pubbytes = new byte[(int) pubfile.length()];
 
 				pubin.read(pubbytes);
 				pubin.close();
-				
+
 				// load both
 				KeyFactory keyFactory = KeyFactory.getInstance(
 						asymKeyAlgorithm, "BC");
-				
-				X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(pubbytes);
+
+				X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(
+						pubbytes);
 				PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
-				
+
 				pk = publicKey;
 			} else {
-			
-				System.out.println("Pub key for this server not found, requesting...");
-				
-				// don't have the key, send any 1-char response to request the key
+
+				System.out
+						.println("Pub key for this server not found, requesting...");
+
+				// don't have the key, send any 1-char response to request the
+				// key
 				outToServer.writeObject('.');
-				
+
 				// Receive server public key
 				pk = (PublicKey) inFromServer.readObject();
-				
+
 				// save public key
 				pubfile.createNewFile();
 				FileOutputStream pubout = new FileOutputStream(pubfile);
-				X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(pk.getEncoded());
+				X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(
+						pk.getEncoded());
 				pubout.write(x509EncodedKeySpec.getEncoded());
 				pubout.close();
-				
+
 			}
-			
+
 			System.out.print("Enter server password: ");
 
 			// get encrypted password and random symmetric key for this session
 			// mask password (returns null on Eclipse, so a fallback is placed)
-						Console con = System.console();
-						if (con != null) {
-							password = HybridCipher.init(pk, con.readPassword().toString());
-						} else {
-							password = HybridCipher.init(pk, inFromUser.readLine());
-						}
-						
+			Console con = System.console();
+			if (con != null) {
+				password = HybridCipher.init(pk, con.readPassword().toString());
+			} else {
+				password = HybridCipher.init(pk, inFromUser.readLine());
+			}
+
 			symmetricKey = HybridCipher.getEncryptedKey(pk);
 
 			// send server the encrypted key, then the password.
@@ -168,8 +166,10 @@ public class Client {
 			System.out.println(new String(HybridCipher
 					.decrypt((byte[]) inFromServer.readObject())));
 
-			// combine protocol and block size into one string, encrypt it and send
-			outToServer.writeObject(HybridCipher.encrypt((protocol + blockSize.toString()).getBytes()));
+			// combine protocol and block size into one string, encrypt it and
+			// send
+			outToServer.writeObject(HybridCipher.encrypt((protocol + blockSize
+					.toString()).getBytes()));
 
 			// Start sync
 			System.out.println(inFromServer.readObject());
@@ -225,26 +225,39 @@ public class Client {
 
 	private static void receive() {
 
+		Instruction receivedInst = null;
+		ObjectOutputStream out = null;
+		ObjectInputStream in = null;
+
 		//
 		// inner infinite loop for synchronization proper
 		//
 		InstructionFactory instFact = new InstructionFactory();
 
-		while (!clientSocket.isClosed()) {
+		try {
+			out = new ObjectOutputStream(clientSocket.getOutputStream());
+
+			in = new ObjectInputStream(clientSocket.getInputStream());
+		} catch (IOException e2) {
+			e2.printStackTrace();
+		}
+
+		while (true) {
 
 			try {
 				// wait for instruction
-				receivedInst = instFact.FromJSON(HybridCipher.decrypt(
-						inFromServer.readUTF().getBytes()).toString());
+				receivedInst = instFact.FromJSON(new String(HybridCipher
+						.decrypt((byte[]) in.readObject())));
 
 				// The Server processes the instruction
 				file.ProcessInstruction(receivedInst);
-
-				outToServer.writeUTF(new String(Base64.encode(HybridCipher
-						.encrypt("Y".getBytes()))));
+				out.writeObject(HybridCipher.encrypt("Y".getBytes()));
 
 			} catch (SocketException e) {
-				System.out.println("Client closed connection");
+				System.out.println("Server closed connection");
+				System.exit(-1);
+			} catch (EOFException e) {
+				// catch if client disconnected and go back to listening
 				break;
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -260,18 +273,18 @@ public class Client {
 					 * the Client to obtain the actual bytes of the block.
 					 */
 
-					outToServer.writeUTF(new String(Base64.encode(HybridCipher
-							.encrypt("N".getBytes()))));
+					out.writeObject(HybridCipher.encrypt("N".getBytes()));
 
 					// network delay
 
 					/*
 					 * Server receives the NewBlock instruction.
 					 */
-					receivedInst = instFact.FromJSON(HybridCipher.decrypt(
-							inFromServer.readUTF().getBytes()).toString());
+					receivedInst = instFact.FromJSON(new String(HybridCipher
+							.decrypt((byte[]) in.readObject())));
 
 					file.ProcessInstruction(receivedInst);
+
 				} catch (IOException e1) {
 					e1.printStackTrace();
 					System.exit(-1);
@@ -281,8 +294,12 @@ public class Client {
 									// this exception
 				} catch (GeneralSecurityException e1) {
 					e.printStackTrace();
+				} catch (ClassNotFoundException e1) {
+					e1.printStackTrace();
 				}
 			} catch (GeneralSecurityException e) {
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
 		}

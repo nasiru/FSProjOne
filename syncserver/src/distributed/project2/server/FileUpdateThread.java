@@ -1,36 +1,102 @@
 package distributed.project2.server;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.SocketException;
+import java.security.GeneralSecurityException;
 
-import distributed.project2.server.SynchronisedFile;
+import javax.crypto.SecretKey;
 
 public class FileUpdateThread implements Runnable {
 
 	SynchronisedFile file = null;
 
-	FileUpdateThread(SynchronisedFile f) {
+	ObjectOutputStream out;
+	ObjectInputStream in;
+
+	SecretKey symmetricKey;
+
+	Boolean isAlive;
+
+	FileUpdateThread(SynchronisedFile f, ObjectOutputStream out,
+			ObjectInputStream in, SecretKey sk) {
 		file = f;
+		symmetricKey = sk;
+		this.out = out;
+		this.in = in;
+		isAlive = true;
 	}
 
 	public void run() {
-		while (true) {
-			// skip if the file is not modified
-			System.err.println("SynchTest: calling fromFile.CheckFileState()");
+
+		Instruction inst;
+
+		// The Client reads instructions to send to the Server
+		while ((inst = file.NextInstruction()) != null) {
+
+			String msg = inst.ToJSON();
+			String response = null;
+
 			try {
-				file.CheckFileState();
+				/*
+				 * The Server sends the msg to the Client.
+				 */
+				System.err.println("Sending: " + msg);
+
+				out.writeObject(HybridCipher.encrypt(msg.getBytes(),
+						symmetricKey));
+
+				/*
+				 * The Server receives the instruction here.
+				 */
+				response = new String(HybridCipher.decrypt(
+						(byte[]) in.readObject(), symmetricKey));
+
+				if (response.equals("N")) {
+					/*
+					 * Server upgrades the CopyBlock to a NewBlock instruction
+					 * and sends it.
+					 */
+
+					Instruction upgraded = new NewBlockInstruction(
+							(CopyBlockInstruction) inst);
+					String msg2 = upgraded.ToJSON();
+
+					System.err.println("Sending: " + msg2);
+					out.writeObject(HybridCipher.encrypt(msg2.getBytes(),
+							symmetricKey));
+				} else if (response.equals("Y")) { // success
+
+					/*
+					 * If using a synchronous RequestReply protocol, the server
+					 * can now acknowledge that the block was correctly
+					 * received, and the next instruction can be sent.
+					 */
+
+					// We do nothing here.
+
+					/*
+					 * Client receives acknowledgement and moves on to process
+					 * next instruction.
+					 */
+
+				}
+
+			} catch (SocketException e) {
+				isAlive = false;
+				break;
 			} catch (IOException e) {
+
 				e.printStackTrace();
-			} catch (InterruptedException e) {
+			} catch (GeneralSecurityException e) {
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
 
-			try {
-				Thread.sleep(5000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+		} // get next instruction loop forever
+
 	}
 
 }

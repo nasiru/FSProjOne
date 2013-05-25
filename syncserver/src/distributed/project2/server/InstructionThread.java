@@ -10,8 +10,6 @@ import java.security.GeneralSecurityException;
 
 import javax.crypto.SecretKey;
 
-import org.bouncycastle.util.encoders.Base64;
-
 /* InstructionThread.java
  * 
  * Authors: Erick Gaspar and Nasir Uddin
@@ -59,18 +57,43 @@ public class InstructionThread implements Runnable {
 
 	public void run() {
 
-		Thread fut = new Thread(new FileUpdateThread(file));
-		fut.start();
-
-		while (true) {
+		mainloop: while (true) {
 
 			if (protocol.equals("S")) {
 				if (!receive(file, out, in)) {
 					break;
 				}
 			} else if (protocol.equals("R")) {
-				if (!send(file, out, in)) {
-					break;
+
+				Thread stt = new Thread(new FileUpdateThread(file, out, in,
+						symmetricKey));
+				stt.start();
+
+				while (true) {
+					// skip if the file is not modified
+					System.err
+							.println("SynchTest: calling fromFile.CheckFileState()");
+
+					try {
+						file.CheckFileState();
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					} catch (InterruptedException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+
+					try {
+						Thread.sleep(5000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+					if (!stt.isAlive()) {
+						break mainloop;
+					}
 				}
 			}
 
@@ -143,82 +166,15 @@ public class InstructionThread implements Runnable {
 				} catch (GeneralSecurityException e1) {
 					e.printStackTrace();
 				} catch (ClassNotFoundException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 		return true;
 	}
 
-	private boolean send(SynchronisedFile file, ObjectOutputStream out,
-			ObjectInputStream in) {
-		Instruction inst;
-
-		// The Client reads instructions to send to the Server
-		while ((inst = file.NextInstruction()) != null) {
-
-			String msg = inst.ToJSON();
-			String response = null;
-
-			try {
-				/*
-				 * The Server sends the msg to the Client.
-				 */
-				System.err.println("Sending: " + msg);
-				out.writeUTF(new String(Base64.encode(HybridCipher.encrypt(
-						msg.getBytes(), symmetricKey))));
-
-				/*
-				 * The Server receives the instruction here.
-				 */
-				response = HybridCipher.decrypt(in.readUTF().getBytes(),
-						symmetricKey).toString();
-
-				if (response.equals("N")) {
-					/*
-					 * Server upgrades the CopyBlock to a NewBlock instruction
-					 * and sends it.
-					 */
-					Instruction upgraded = new NewBlockInstruction(
-							(CopyBlockInstruction) inst);
-					String msg2 = upgraded.ToJSON();
-
-					System.err.println("Sending: " + msg2);
-					out.writeUTF(new String(Base64.encode(HybridCipher.encrypt(
-							msg2.getBytes(), symmetricKey))));
-				} else if (response.equals("Y")) { // success
-
-					/*
-					 * If using a synchronous RequestReply protocol, the server
-					 * can now acknowledge that the block was correctly
-					 * received, and the next instruction can be sent.
-					 */
-
-					// We do nothing here.
-
-					/*
-					 * Client receives acknowledgement and moves on to process
-					 * next instruction.
-					 */
-
-				}
-
-			} catch (SocketException e) {
-				return false;
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			}
-
-		} // get next instruction loop forever
-
-		return true;
-	}
 }

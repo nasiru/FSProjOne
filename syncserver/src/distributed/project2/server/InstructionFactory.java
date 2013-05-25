@@ -17,13 +17,13 @@ import org.json.simple.parser.ParseException;
 public class InstructionFactory {
 
 	private static final JSONParser parser = new JSONParser();
-	
-	InstructionFactory(){
-		
+
+	InstructionFactory() {
+
 	}
-	
+
 	// returns null on any problems
-	synchronized Instruction FromJSON(String jst){
+	synchronized Instruction FromJSON(String jst) {
 		JSONObject obj;
 		try {
 			obj = (JSONObject) parser.parse(jst);
@@ -32,19 +32,20 @@ public class InstructionFactory {
 			e.printStackTrace();
 			return null;
 		}
-		if(obj!=null){
-			Instruction inst=null;
-			if(obj.get("Type").equals("StartUpdate"))
+		if (obj != null) {
+			Instruction inst = null;
+			if (obj.get("Type").equals("StartUpdate"))
 				inst = new StartUpdateInstruction();
-			else if(obj.get("Type").equals("EndUpdate"))
+			else if (obj.get("Type").equals("EndUpdate"))
 				inst = new EndUpdateInstruction();
-			else if(obj.get("Type").equals("CopyBlock"))
+			else if (obj.get("Type").equals("CopyBlock"))
 				inst = new CopyBlockInstruction();
-			else if(obj.get("Type").equals("NewBlock"))
+			else if (obj.get("Type").equals("NewBlock"))
 				inst = new NewBlockInstruction();
 			inst.FromJSON(jst);
 			return inst;
-		} else return null;
+		} else
+			return null;
 	}
-	
+
 }
