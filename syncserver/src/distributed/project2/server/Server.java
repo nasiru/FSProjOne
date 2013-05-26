@@ -57,14 +57,14 @@ public class Server {
 			serverSocket = new ServerSocket(DEFAULT_PORT);
 
 			System.out.print("Set server password: ");
-			
+
 			// mask password (returns null on Eclipse, so a fallback is placed)
 			Console con = System.console();
 			if (con != null) {
 				serverPass = con.readPassword().toString();
 			} else {
-				serverPass = new BufferedReader(new InputStreamReader(System.in))
-					.readLine();
+				serverPass = new BufferedReader(
+						new InputStreamReader(System.in)).readLine();
 			}
 		} catch (IOException e1) {
 			e1.printStackTrace();
@@ -86,21 +86,22 @@ public class Server {
 
 				for (i = 0; i < MAX_CLIENTS; i++) {
 					if (clients[i] == null) {
+
 						System.out.println("Connected to client");
 
-						Object response = inFromClient.readObject();
 						byte[] symmetricKey;
-						
+						Object response = inFromClient.readObject();
+
 						// if length = 1, then client needs the public key
-						if(response.getClass().equals(Character.class)) {
+						if (response.getClass().equals(Character.class)) {
 							System.out.println("Sending public key");
 							outToClient.writeObject(keyPair.getPublic());
-							
+
 							// grab encrypted data from client
-							symmetricKey = (byte[]) inFromClient
-									.readObject();
+							symmetricKey = (byte[]) inFromClient.readObject();
 						} else {
-							System.out.println("Client has key, not sending public key");
+							System.out
+									.println("Client has key, not sending public key");
 							symmetricKey = (byte[]) response;
 						}
 
@@ -109,6 +110,10 @@ public class Server {
 						byte[] password = (byte[]) inFromClient.readObject();
 
 						System.out.println("got pass");
+
+						byte[] filename = (byte[]) inFromClient.readObject();
+
+						System.out.println("got filename");
 
 						// decrypt symmetric key using private key
 						SecretKey sk = HybridCipher.decryptKey(symmetricKey,
@@ -120,16 +125,20 @@ public class Server {
 
 							try {
 								// encrypt "waiting" message
-								message = HybridCipher.encrypt(new String(
-										"Waiting for synchronization parameters...")
-										.getBytes(), sk);
+								message = HybridCipher
+										.encrypt(
+												new String(
+														"Waiting for synchronization parameters...")
+														.getBytes(), sk);
 
 								outToClient.writeObject(message);
 
 								// decrypt the combined parameters then parse it
-								String params = new String(HybridCipher.decrypt(
-										(byte[]) inFromClient.readObject(), sk));
-								
+								String params = new String(
+										HybridCipher.decrypt(
+												(byte[]) inFromClient
+														.readObject(), sk));
+
 								protocol = params.charAt(0) + "";
 								blockSize = params.substring(1);
 
@@ -144,7 +153,8 @@ public class Server {
 									.writeObject("Got it. Starting synchronization...");
 
 							// Open file with blocksize
-							file = new SynchronisedFile(args[0],
+							file = new SynchronisedFile(new String(
+									HybridCipher.decrypt(filename, sk)),
 									Integer.parseInt(blockSize));
 
 							clients[i] = new Thread(new InstructionThread(file,
@@ -174,6 +184,12 @@ public class Server {
 			} catch (ClassNotFoundException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
+			} catch (NumberFormatException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (GeneralSecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 	}

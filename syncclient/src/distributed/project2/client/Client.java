@@ -94,6 +94,13 @@ public class Client {
 			outToServer = new ObjectOutputStream(clientSocket.getOutputStream());
 			inFromServer = new ObjectInputStream(clientSocket.getInputStream());
 
+			// create directory for the keys
+			if (!new File("keys/").mkdirs()) {
+				System.out
+						.println("Could not create 'keys' directory, please create one manually.");
+				System.exit(-1);
+			}
+
 			File pubfile = new File("keys/" + args[0]);
 
 			if (pubfile.exists()) {
@@ -159,6 +166,8 @@ public class Client {
 			System.out.println("key sent");
 			outToServer.writeObject(password);
 			System.out.println("pass sent");
+			outToServer.writeObject(HybridCipher.encrypt(args[1].getBytes()));
+			System.out.println("filename sent");
 
 			// If the server accepts the key and password, the program continues
 

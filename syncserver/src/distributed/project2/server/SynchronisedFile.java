@@ -336,6 +336,15 @@ public class SynchronisedFile {
 
 	private void OpenFile() throws FileNotFoundException {
 		CloseFile(); // just a precaution
+
+		// create file if it doesn't exist
+		File f = new File(filename);
+		try {
+			f.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 		in = new FileInputStream(filename);
 	}
 
