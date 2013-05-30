@@ -13,6 +13,18 @@ import javax.crypto.SecretKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Base64;
 
+/* HybridCipher.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: Contains all cipher related methods for this program. This differs from
+ * the Server version because it generates a symmetric key instead of an asymmetric keypair.
+ * 
+ * The algorithms listed here must coincide with the server's algorithms in order
+ * for encryption/decryption to work.
+ * 
+ */
+
 public class HybridCipher {
 
 	// asymmetric algorithms used
@@ -35,11 +47,6 @@ public class HybridCipher {
 
 			SecureRandom sr = new SecureRandom();
 
-			/***
-			 * on the producer side: 1. Generate a secret key. 2. Use asymmetric
-			 * algorithm to encrypt the secret key for consumer 3. Use symmetric
-			 * algorithm to encrypt message using the secret key
-			 ***/
 			// generate a random secret key
 			KeyGenerator kg = KeyGenerator.getInstance(symKeyAlgorithm);
 			kg.init(symAlgorithmStrength, sr);
@@ -64,8 +71,9 @@ public class HybridCipher {
 
 	}
 
+	// encrypt the secret key using the server's public key
 	public static byte[] getEncryptedKey(PublicKey pk) {
-		// encrypt the secret key using the consumer's public key
+
 		byte[] encryptedSecretKey = null;
 
 		try {
@@ -77,6 +85,7 @@ public class HybridCipher {
 		return encryptedSecretKey;
 	}
 
+	// encrypt the message using the symmetric key
 	public static byte[] encrypt(byte[] toEncrypt)
 			throws GeneralSecurityException {
 
@@ -88,6 +97,7 @@ public class HybridCipher {
 		return result;
 	}
 
+	// encrypts using the provided server public key
 	public static byte[] encrypt(byte[] toEncrypt, PublicKey key)
 			throws GeneralSecurityException {
 
@@ -98,6 +108,7 @@ public class HybridCipher {
 		return result;
 	}
 
+	// decrypts using the symmetric key
 	public static byte[] decrypt(byte[] toDecrypt)
 			throws GeneralSecurityException {
 
@@ -108,6 +119,7 @@ public class HybridCipher {
 		return result;
 	}
 
+	// decrypts using the private key (not used by the client, but kept here for posterity)
 	public static byte[] decrypt(byte[] toDecrypt, PrivateKey key)
 			throws GeneralSecurityException {
 

@@ -20,6 +20,18 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+/* HybridCipher.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: Contains all cipher related methods for this program. This differs from
+ * the Client version because it generates an asymmetric keypair instead of a symmetric key.
+ * 
+ * The algorithms listed here must coincide with the client's algorithms in order
+ * for encryption/decryption to work.
+ * 
+ */
+
 public class HybridCipher {
 
 	// asymmetric algorithms used
@@ -79,7 +91,7 @@ public class HybridCipher {
 			
 			SecureRandom sr = new SecureRandom();
 
-			// Generate consumer keys 
+			// Generate keys 
 			KeyPairGenerator gen = KeyPairGenerator.getInstance(
 					asymKeyAlgorithm, "BC");
 			gen.initialize(asymKeyAlgorithmStrength, sr);
@@ -114,11 +126,7 @@ public class HybridCipher {
 		return null;
 	}
 
-	/***
-	 * and now on the consumer side: 1. Use asymmetric algorithm and consumer's
-	 * private key to decrypt the secret key 2. Use symmetric algorithm and
-	 * secret key to decrypt message.
-	 ***/
+	// decrypt the received password using your private key
 	public static boolean verifyPassword(byte[] password, SecretKey sk,
 			String serverPass) {
 
@@ -130,16 +138,15 @@ public class HybridCipher {
 		} catch (GeneralSecurityException e) {
 			e.printStackTrace();
 		}
-
-		System.out.println("Password decoded, byte count: "
-				+ decryptedPassword.length());
+		
 		System.out.println("Decrypted password: [" + decryptedPassword + "] ");
 
 		return decryptedPassword.equals(serverPass);
 	}
 
+	// decrypt the symmetric key sent by the client using your private key
 	public static SecretKey decryptKey(byte[] encryptedSecretKey, KeyPair kp) {
-		// first get the secret key back with the consumer's private key
+		
 		byte[] encodedSecretKey = null;
 
 		try {
@@ -155,17 +162,18 @@ public class HybridCipher {
 
 	}
 
+	// encrypt the message using the provided symmetric key
 	public static byte[] encrypt(byte[] toEncrypt, SecretKey key)
 			throws GeneralSecurityException {
 
 		Cipher cipher = Cipher.getInstance(symAlgorithm);
-		//System.out.println("got cipher, blocksize = " + cipher.getBlockSize());
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 
 		byte[] result = cipher.doFinal(toEncrypt);
 		return result;
 	}
 
+	// encrypt using the generated public key (not used but kept for posterity)
 	public static byte[] encrypt(byte[] toEncrypt, PublicKey key)
 			throws GeneralSecurityException {
 
@@ -176,6 +184,7 @@ public class HybridCipher {
 		return result;
 	}
 
+	// decrypts the message using the symmetric key provided
 	public static byte[] decrypt(byte[] toDecrypt, SecretKey key)
 			throws GeneralSecurityException {
 
@@ -186,6 +195,7 @@ public class HybridCipher {
 		return result;
 	}
 
+	// decrypts the message using the generated private key
 	public static byte[] decrypt(byte[] toDecrypt, PrivateKey key)
 			throws GeneralSecurityException {
 

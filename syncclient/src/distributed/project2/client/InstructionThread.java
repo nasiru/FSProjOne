@@ -15,6 +15,8 @@ import java.security.GeneralSecurityException;
  * 'Y' or 'N' for success or for BlockUnavailableException
  * respectively.
  * 
+ * Project 2 modification: Added encryption/decryption methods for every message
+ * 
  * Code structure based on Aaron Harwood's SyncTestThread
  * 
  */

@@ -19,8 +19,8 @@ import javax.crypto.SecretKey;
  * 'Y' or 'N' for success or for BlockUnavailableException
  * respectively.
  * 
- * Includes a handler for SocketException to prevent crashing upon
- * unclean client disconnections.
+ * Project 2 modification: Added encryption/decryption methods for every message.
+ * Also spawns a FileUpdateThread if receiving from a client.
  * 
  * Code structure based on Aaron Harwood's SyncTestThread
  * 

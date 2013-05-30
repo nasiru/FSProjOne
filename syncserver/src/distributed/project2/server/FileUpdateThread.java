@@ -8,6 +8,24 @@ import java.security.GeneralSecurityException;
 
 import javax.crypto.SecretKey;
 
+/* FileUpdateThread.java
+ * 
+ * Authors: Erick Gaspar and Nasir Uddin
+ * 
+ * Description: Handles the received JSON messages containing
+ * synchronization instructions. Follows a request-reply protocol
+ * 'Y' or 'N' for success or for BlockUnavailableException
+ * respectively.
+ * 
+ * Includes a handler for SocketException to prevent crashing upon
+ * unclean client disconnections.
+ * 
+ * Project 2 modification: This is spawned from InstructionThread in order to process
+ * the instruction queue separately, as the file needs to be checked every so often.
+ * 
+ * Code structure based on Aaron Harwood's SyncTestThread
+ * 
+ */
 public class FileUpdateThread implements Runnable {
 
 	SynchronisedFile file = null;

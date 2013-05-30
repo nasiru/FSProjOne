@@ -20,8 +20,18 @@ import javax.crypto.SecretKey;
  * 
  * Description: A basic TCP server setup built on top of the
  * Filesync protocol. Allows negotiation of data flow and block size
- * with its clients. Calls InstructionThread when it is designated as
- * the sender. 
+ * with its clients.
+ * 
+ * Project 2 extends this by adding encryption protocols on top of
+ * plaintext messages using the BouncyCastle Security Provider.
+ * Multiple clients are now possible via multi-threading.
+ * 
+ * Calls InstructionThread when it is designated as the sender. 
+ * HybridCipher handles the encryption layer.
+ * 
+ * Calls InstructionThread when it is designated as the sender. 
+ * 
+ * No arguments are needed for it to run.
  * 
  * Code structure based on Aaron Harwood's SyncTest
  * 
@@ -182,13 +192,10 @@ public class Server {
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (ClassNotFoundException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			} catch (NumberFormatException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (GeneralSecurityException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

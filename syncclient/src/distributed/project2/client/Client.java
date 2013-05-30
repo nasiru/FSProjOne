@@ -28,7 +28,13 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
  * Filesync protocol. Allows negotiation of data flow and block size
  * upon connecting to the server via user input. 
  * 
+ * Project 2 extends this by adding encryption protocols on top of
+ * plaintext messages using the BouncyCastle Security Provider.
+ * 
  * Calls InstructionThread when it is designated as the sender. 
+ * HybridCipher handles the encryption layer.
+ * 
+ * Argument format: address filename S|R 1-40000 
  * 
  * Code structure based on Aaron Harwood's SyncTest
  * 
@@ -95,7 +101,8 @@ public class Client {
 			inFromServer = new ObjectInputStream(clientSocket.getInputStream());
 
 			// create directory for the keys
-			if (!new File("keys/").mkdirs()) {
+			File dir = new File("keys");
+			if (!dir.exists() && !dir.mkdirs()) {
 				System.out
 						.println("Could not create 'keys' directory, please create one manually.");
 				System.exit(-1);
