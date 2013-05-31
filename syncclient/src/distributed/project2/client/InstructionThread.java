@@ -56,7 +56,8 @@ public class InstructionThread implements Runnable {
 				/*
 				 * The Client sends the msg to the Server.
 				 */
-				System.err.println("Sending: " + msg);
+				System.err.println("Sending encrypted message: "
+						+ new String(HybridCipher.encrypt(msg.getBytes())));
 
 				out.writeObject(HybridCipher.encrypt(msg.getBytes()));
 
@@ -75,7 +76,10 @@ public class InstructionThread implements Runnable {
 							(CopyBlockInstruction) inst);
 					String msg2 = upgraded.ToJSON();
 
-					System.err.println("Sending: " + msg2);
+					System.err
+							.println("Sending encrypted message: "
+									+ new String(HybridCipher.encrypt(msg2
+											.getBytes())));
 					out.writeObject(HybridCipher.encrypt(msg2.getBytes()));
 
 				} else if (response.equals("Y")) { // success

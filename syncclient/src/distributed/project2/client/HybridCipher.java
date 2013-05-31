@@ -35,7 +35,7 @@ public class HybridCipher {
 	// symmetric algorithms used
 	public static String symKeyAlgorithm = "RIJNDAEL";
 	public static String symAlgorithm = "RIJNDAEL";
-	public static int symAlgorithmStrength = 256;
+	public static int symAlgorithmStrength = 128;
 
 	private static SecretKey cipherKey = null;
 
@@ -90,7 +90,8 @@ public class HybridCipher {
 			throws GeneralSecurityException {
 
 		Cipher cipher = Cipher.getInstance(symAlgorithm);
-		//System.out.println("got cipher, blocksize = " + cipher.getBlockSize());
+		// System.out.println("got cipher, blocksize = " +
+		// cipher.getBlockSize());
 		cipher.init(Cipher.ENCRYPT_MODE, cipherKey);
 
 		byte[] result = cipher.doFinal(toEncrypt);
@@ -119,7 +120,8 @@ public class HybridCipher {
 		return result;
 	}
 
-	// decrypts using the private key (not used by the client, but kept here for posterity)
+	// decrypts using the private key (not used by the client, but kept here for
+	// posterity)
 	public static byte[] decrypt(byte[] toDecrypt, PrivateKey key)
 			throws GeneralSecurityException {
 

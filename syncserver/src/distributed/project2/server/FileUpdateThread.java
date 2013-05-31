@@ -60,7 +60,9 @@ public class FileUpdateThread implements Runnable {
 				/*
 				 * The Server sends the msg to the Client.
 				 */
-				System.err.println("Sending: " + msg);
+				System.err.println("Sending encrypted message: "
+						+ new String(HybridCipher.encrypt(msg.getBytes(),
+								symmetricKey)));
 
 				out.writeObject(HybridCipher.encrypt(msg.getBytes(),
 						symmetricKey));
@@ -81,7 +83,9 @@ public class FileUpdateThread implements Runnable {
 							(CopyBlockInstruction) inst);
 					String msg2 = upgraded.ToJSON();
 
-					System.err.println("Sending: " + msg2);
+					System.err.println("Sending encrypted message: "
+							+ new String(HybridCipher.encrypt(msg2.getBytes(),
+									symmetricKey)));
 					out.writeObject(HybridCipher.encrypt(msg2.getBytes(),
 							symmetricKey));
 				} else if (response.equals("Y")) { // success

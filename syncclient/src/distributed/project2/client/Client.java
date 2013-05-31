@@ -14,9 +14,12 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.spec.X509EncodedKeySpec;
+
+import javax.crypto.Cipher;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
@@ -50,7 +53,7 @@ public class Client {
 	// symmetric algorithms used
 	public static String symKeyAlgorithm = "RIJNDAEL";
 	public static String symAlgorithm = "RIJNDAEL";
-	public static int symAlgorithmStrength = 256;
+	public static int symAlgorithmStrength = 128;
 
 	static final int DEFAULT_PORT = 7654;
 	static final int MAX_BLOCK_SIZE = 40000;
@@ -75,6 +78,15 @@ public class Client {
 
 		BufferedReader inFromUser = new BufferedReader(new InputStreamReader(
 				System.in));
+
+		try {
+			System.out.println("AES MAX: "
+					+ Cipher.getMaxAllowedKeyLength("AES"));
+			System.out.println("RSA: " + Cipher.getMaxAllowedKeyLength("RSA"));
+		} catch (NoSuchAlgorithmException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 
 		try {
 
@@ -161,7 +173,8 @@ public class Client {
 			// mask password (returns null on Eclipse, so a fallback is placed)
 			Console con = System.console();
 			if (con != null) {
-				password = HybridCipher.init(pk, con.readPassword().toString());
+				password = HybridCipher
+						.init(pk, new String(con.readPassword()));
 			} else {
 				password = HybridCipher.init(pk, inFromUser.readLine());
 			}

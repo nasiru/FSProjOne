@@ -71,7 +71,7 @@ public class Server {
 			// mask password (returns null on Eclipse, so a fallback is placed)
 			Console con = System.console();
 			if (con != null) {
-				serverPass = con.readPassword().toString();
+				serverPass = new String(con.readPassword());
 			} else {
 				serverPass = new BufferedReader(
 						new InputStreamReader(System.in)).readLine();
